@@ -21,8 +21,6 @@ CONFIG_FILE = os.path.join(BASE_DIR, 'config.json')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['EXTRACT_FOLDER'] = EXTRACT_FOLDER
 
-app.config['DATE_OVERRIDE'] = '2023-09-12'
-
 # Global storage for the current session data (Simple in-memory store)
 DATA_STORE = {
     'df': None,
@@ -150,20 +148,30 @@ def get_dashboard_stats(df):
     expiration_breakdown = {}
     
     # Determine reference "Today" date
-    if app.config.get('DATE_OVERRIDE'):
+    # Default to actual system time
+    TODAY = datetime.now()
+    is_override = False
+
+    # Check for completed_date column to detect stale data
+    if 'completed_date' in df.columns:
         try:
-            TODAY = datetime.strptime(app.config['DATE_OVERRIDE'], '%Y-%m-%d')
-        except ValueError:
-            # Fallback to now if format is wrong
-            TODAY = datetime.now()
-    else:
-        TODAY = datetime.now()
+             # Check max date
+             max_date_ts = pd.to_datetime(df['completed_date'], errors='coerce').max()
+             
+             if pd.notnull(max_date_ts):
+                 max_date = max_date_ts.to_pydatetime()
+                 # If data max date is older than yesterday, use it as reference
+                 if max_date < (datetime.now() - timedelta(days=1)):
+                     TODAY = max_date
+                     is_override = True
+        except Exception as e:
+            print(f"Error determining max date: {e}")
 
     seven_days_ago = TODAY - timedelta(days=7)
-    next_seven_days = TODAY + timedelta(days=7)
+    next_thirty_days = TODAY + timedelta(days=30)
     
     seven_days_ago_ts = seven_days_ago.timestamp()
-    next_seven_days_ts = next_seven_days.timestamp()
+    next_thirty_days_ts = next_thirty_days.timestamp()
 
     # Initialize breakdown variables
     recent_customers = 0
@@ -415,8 +423,8 @@ def get_dashboard_stats(df):
              
              expire_ts = expire_ts.fillna(0)
              
-             # Expiring in the next 7 days
-             expiring_mask = (expire_ts > TODAY.timestamp()) & (expire_ts <= next_seven_days_ts)
+             # Expiring in the next 30 days
+             expiring_mask = (expire_ts > TODAY.timestamp()) & (expire_ts <= next_thirty_days_ts)
              upcoming_expirations = df.loc[expiring_mask].shape[0]
              
              if upcoming_expirations > 0:
@@ -444,9 +452,14 @@ def get_dashboard_stats(df):
                             top_ex_clients_s = expiring_df.groupby(ex_client_col)[ex_byte_col].apply(
                                 lambda x: pd.to_numeric(x, errors='coerce').sum()
                             )
-                            top_expiring_clients_breakdown_raw = (top_ex_clients_s.nlargest(5) / (1024**3)).round(2).to_dict()
-                            # Shorten Client Names (FQDN -> Hostname)
-                            top_expiring_clients_breakdown = {str(k).split('.')[0]: v for k, v in top_expiring_clients_breakdown_raw.items()}
+                            # Return list of dicts to preserve order and structure
+                            top_5_series = top_ex_clients_s.nlargest(5)
+                            top_expiring_clients_breakdown = []
+                            for client, size_bytes in top_5_series.items():
+                                top_expiring_clients_breakdown.append({
+                                    'client': str(client).split('.')[0],
+                                    'gb': round(size_bytes / (1024**3), 2)
+                                })
                         
                         # Top 5 Expiring Customers (GB)
                         if 'extracted_customer' in expiring_df.columns:
@@ -527,7 +540,7 @@ def get_dashboard_stats(df):
         'simulated_date': TODAY.strftime('%Y-%m-%d'),
         # Add column names for debugging in template if needed
         'debug_cols': list(df.columns) if not df.empty else [],
-        'is_override': bool(app.config.get('DATE_OVERRIDE'))
+        'is_override': is_override
     }
     return stats
 

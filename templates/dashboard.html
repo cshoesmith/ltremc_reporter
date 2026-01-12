@@ -1,17 +1,15 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1 class="mb-4">{{ title if title else 'LTREMC Avamar Dashboard' }}</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">{{ title if title else 'LTREMC Avamar Dashboard' }}</h1>
 
-{% if stats.is_override %}
-<div class="alert alert-warning border border-warning">
-    <strong>⚠️ DEMO MODE ACTIVE</strong>
-    <br>
-    The application is currently running with a simulated system date of <strong>{{ stats.simulated_date }}</strong>.
-    <br>
-    All "Recent Activity" and "Expiring Soon" calculations are relative to this specific date, not the actual current time.
+    {% if stats.is_override %}
+    <div class="text-end lh-sm">
+        <div class="text-muted small">Report Date: <strong>{{ stats.simulated_date }}</strong></div>
+    </div>
+    {% endif %}
 </div>
-{% endif %}
 
 {% if dropped_files %}
 <div class="alert alert-warning" role="alert">
@@ -41,13 +39,13 @@
                 <div class="card-label mb-2">Avamar Grids</div>
                 <div>
                     <a href="#" class="text-decoration-none text-dark" data-bs-toggle="modal" data-bs-target="#modalTotalGrids">
-                        <span class="h3 fw-light">{{ "{:,}".format(stats.total_grids) }}</span>
+                        <span class="h3 fw-normal">{{ "{:,}".format(stats.total_grids) }}</span>
                         <small class="text-muted ms-1">Total</small>
                     </a>
                 </div>
                 <div class="mt-2 pt-2 border-top">
                     <a href="#" class="text-decoration-none text-success" data-bs-toggle="modal" data-bs-target="#modalActiveGrids">
-                        <span class="h4 fw-light">{{ "{:,}".format(stats.recent_grids) }}</span>
+                        <span class="h4 fw-normal">{{ "{:,}".format(stats.recent_grids) }}</span>
                         <small class="text-muted ms-1">Active</small>
                     </a>
                 </div>
@@ -60,13 +58,13 @@
                 <div class="card-label mb-2">Customers</div>
                 <div>
                      <a href="#" class="text-decoration-none text-dark" data-bs-toggle="modal" data-bs-target="#modalTotalCustomers">
-                        <span class="h3 fw-light">{{ "{:,}".format(stats.total_customers) }}</span>
+                        <span class="h3 fw-normal">{{ "{:,}".format(stats.total_customers) }}</span>
                         <small class="text-muted ms-1">Total</small>
                      </a>
                 </div>
                 <div class="mt-2 pt-2 border-top">
                      <a href="#" class="text-decoration-none text-warning" data-bs-toggle="modal" data-bs-target="#modalActiveCustomers">
-                        <span class="h4 fw-light">{{ "{:,}".format(stats.recent_customers) }}</span>
+                        <span class="h4 fw-normal">{{ "{:,}".format(stats.recent_customers) }}</span>
                         <small class="text-muted ms-1">Active</small>
                      </a>
                 </div>
@@ -79,13 +77,13 @@
                 <div class="card-label mb-2">Clients</div>
                 <div>
                     <a href="#" class="text-decoration-none text-dark" data-bs-toggle="modal" data-bs-target="#modalTotalClients">
-                        <span class="h3 fw-light">{{ "{:,}".format(stats.total_clients) }}</span>
+                        <span class="h3 fw-normal">{{ "{:,}".format(stats.total_clients) }}</span>
                         <small class="text-muted ms-1">Total</small>
                     </a>
                 </div>
                 <div class="mt-2 pt-2 border-top">
                      <a href="#" class="text-decoration-none text-secondary" data-bs-toggle="modal" data-bs-target="#modalActiveClients">
-                        <span class="h4 fw-light">{{ "{:,}".format(stats.recent_clients) }}</span>
+                        <span class="h4 fw-normal">{{ "{:,}".format(stats.recent_clients) }}</span>
                         <small class="text-muted ms-1">Active</small>
                      </a>
                 </div>
@@ -231,7 +229,7 @@
 
 <div class="card border-warning mb-4">
     <div class="card-header bg-warning text-white">
-        <h5 class="mb-0">Expiring Soon (Next 7 Days)</h5>
+        <h5 class="mb-0">Expiring Soon (Next 30 Days)</h5>
     </div>
     <div class="card-body">
         <!-- Summary Row -->
@@ -422,15 +420,29 @@
 
         // --- Top Expiring Clients Chart ---
         const exClientsData = {{ stats.top_expiring_clients_breakdown | tojson }};
+        
+        // Handle Map (List of Dicts) or Object
+        let exClientsLabels = [];
+        let exClientsValues = [];
+
+        if (Array.isArray(exClientsData)) {
+             exClientsLabels = exClientsData.map(d => d.client);
+             exClientsValues = exClientsData.map(d => d.gb);
+        } else {
+             // Fallback for object format
+             exClientsLabels = Object.keys(exClientsData);
+             exClientsValues = Object.values(exClientsData);
+        }
+
         const exClientsCtx = document.getElementById('topExpiringClientsChart').getContext('2d');
         
         new Chart(exClientsCtx, {
             type: 'bar',
             data: {
-                labels: Object.keys(exClientsData),
+                labels: exClientsLabels,
                 datasets: [{
                     label: 'GB Releasable',
-                    data: Object.values(exClientsData),
+                    data: exClientsValues,
                     backgroundColor: 'rgba(255, 159, 64, 0.6)',
                     borderColor: 'rgba(255, 159, 64, 1)',
                     borderWidth: 1

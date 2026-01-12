@@ -25,7 +25,7 @@
         }
 
         h1, h2, h3, h4, h5, h6 {
-            font-weight: 300;
+            font-weight: 400;
         }
 
         .navbar {
@@ -100,18 +100,18 @@
         .border-top-gray { border-top: 4px solid #636363; }
         
         /* Typography adjustments for cards */
-        .card-title-lg { font-size: 2.5rem; font-weight: 300; line-height: 1.2; }
+        .card-title-lg { font-size: 2.5rem; font-weight: 400; line-height: 1.2; }
         .card-label { text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; color: #666; font-weight: 500;}
     </style>
     {% block head %}{% endblock %}
 </head>
 <body>
     {% if request.endpoint != 'index' %}
-    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4 py-3">
         <div class="container-fluid">
             <a class="navbar-brand d-flex flex-column py-0" href="/">
-                <span style="line-height: 1.2;">LTREMC Backup Reporter</span>
-                <span style="font-size: 0.65rem; opacity: 0.8; font-weight: 300;">Author: Chris Shoesmith (chris.shoesmith@dell.com)</span>
+                <span style="line-height: 1.2; font-size: 1.4rem">LTREMC Backup Reporter</span>
+                <span style="font-size: 0.85rem; opacity: 0.9; font-weight: 400;">Author: Chris Shoesmith (chris.shoesmith@dell.com)</span>
             </a>
              <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
                 <span class="navbar-toggler-icon"></span>
