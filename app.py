@@ -130,7 +130,7 @@ def inject_menu_items():
     
     return menu_data
 
-def get_dashboard_stats(df):
+def get_dashboard_stats(df, full_df=None):
     # Identify Grid Column
     grid_col = None
     for col in df.columns:
@@ -153,10 +153,13 @@ def get_dashboard_stats(df):
     is_override = False
 
     # Check for completed_date column to detect stale data
-    if 'completed_date' in df.columns:
+    # Use full_df if provided for consistent reporting date across subset views
+    date_ref_df = full_df if full_df is not None else df
+    
+    if 'completed_date' in date_ref_df.columns:
         try:
              # Check max date
-             max_date_ts = pd.to_datetime(df['completed_date'], errors='coerce').max()
+             max_date_ts = pd.to_datetime(date_ref_df['completed_date'], errors='coerce').max()
              
              if pd.notnull(max_date_ts):
                  max_date = max_date_ts.to_pydatetime()
@@ -711,7 +714,7 @@ def dashboard():
     if DATA_STORE['df'] is None:
         return redirect(url_for('index'))
     
-    stats = get_dashboard_stats(DATA_STORE['df'])
+    stats = get_dashboard_stats(DATA_STORE['df'], full_df=DATA_STORE['df'])
     return render_template('dashboard.html', stats=stats, dropped_files=DATA_STORE['dropped_files'], title="Global Dashboard")
 
 @app.route('/grid/<grid_name>')
@@ -733,7 +736,7 @@ def grid_report(grid_name):
         return redirect(url_for('dashboard'))
 
     grid_df = df[df[grid_col] == grid_name]
-    stats = get_dashboard_stats(grid_df)
+    stats = get_dashboard_stats(grid_df, full_df=DATA_STORE['df'])
     return render_template('dashboard.html', stats=stats, dropped_files=[], title=f"Avamar Grid: {grid_name}")
 
 @app.route('/customer/<path:customer_name>')
@@ -745,7 +748,7 @@ def customer_report(customer_name):
     
     if 'extracted_customer' in df.columns:
         cust_df = df[df['extracted_customer'] == customer_name]
-        stats = get_dashboard_stats(cust_df)
+        stats = get_dashboard_stats(cust_df, full_df=DATA_STORE['df'])
         return render_template('dashboard.html', stats=stats, dropped_files=[], title=f"Customer Report: {customer_name}")
     else:
         flash("Could not identify Customer column.")
