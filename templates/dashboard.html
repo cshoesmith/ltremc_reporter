@@ -29,7 +29,6 @@
             <div class="card-body">
                 <div class="card-label mb-2">Total Backups</div>
                 <h2 class="card-title-lg text-primary mb-1">{{ "{:,}".format(stats.total_records) }}</h2>
-                <small class="text-muted">Records Processed</small>
             </div>
         </div>
     </div>
@@ -513,25 +512,33 @@
 {% macro list_modal(id, title, items) %}
 <div class="modal fade" id="{{ id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">{{ title }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content border-0 shadow-lg" style="overflow: hidden;">
+            <div class="modal-header text-white" style="background-color: var(--dell-blue, #0076CE);">
+                <h5 class="modal-title fw-light">
+                    <i class="bi bi-list-ul me-2"></i>{{ title }}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body bg-light p-0">
                 {% if items %}
                 <ul class="list-group list-group-flush">
                     {% for item in items %}
-                    <li class="list-group-item py-2 small">{{ item }}</li>
+                    <li class="list-group-item list-group-item-action py-2 px-4 small border-bottom border-light text-secondary">
+                        {{ item }}
+                    </li>
                     {% endfor %}
                 </ul>
                 {% else %}
-                <p class="text-muted text-center my-3">No items found.</p>
+                <div class="text-center py-5">
+                    <p class="text-muted mb-0">No items found.</p>
+                </div>
                 {% endif %}
             </div>
-             <div class="modal-footer">
-                <div class="small text-muted me-auto">{{ items|length }} items</div>
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+             <div class="modal-footer bg-light border-top">
+                <div class="small text-muted me-auto badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 shadow-sm px-3 py-2 rounded-pill">
+                    {{ items|length }} Items
+                </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
