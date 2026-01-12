@@ -363,13 +363,24 @@
         const customersData = {{ stats.top_customers_breakdown | tojson }};
         const customersCtx = document.getElementById('topCustomersChart').getContext('2d');
         
+        let custLabels = [];
+        let custValues = [];
+
+        if (Array.isArray(customersData)) {
+            custLabels = customersData.map(d => d.customer);
+            custValues = customersData.map(d => d.gb);
+        } else {
+            custLabels = Object.keys(customersData);
+            custValues = Object.values(customersData);
+        }
+
         new Chart(customersCtx, {
             type: 'bar', 
             data: {
-                labels: Object.keys(customersData),
+                labels: custLabels,
                 datasets: [{
                     label: 'GB Written',
-                    data: Object.values(customersData),
+                    data: custValues,
                     backgroundColor: 'rgba(75, 192, 192, 0.6)',
                     borderColor: 'rgba(75, 192, 192, 1)',
                     borderWidth: 1
@@ -460,15 +471,27 @@
 
         // --- Top Expiring Customers Chart ---
         const exCustomersData = {{ stats.top_expiring_customers_breakdown | tojson }};
+        
+        let exCustLabels = [];
+        let exCustValues = [];
+
+        if (Array.isArray(exCustomersData)) {
+             exCustLabels = exCustomersData.map(d => d.customer);
+             exCustValues = exCustomersData.map(d => d.gb);
+        } else {
+             exCustLabels = Object.keys(exCustomersData);
+             exCustValues = Object.values(exCustomersData);
+        }
+
         const exCustomersCtx = document.getElementById('topExpiringCustomersChart').getContext('2d');
         
         new Chart(exCustomersCtx, {
             type: 'bar',
             data: {
-                labels: Object.keys(exCustomersData),
+                labels: exCustLabels,
                 datasets: [{
                     label: 'GB Releasable',
-                    data: Object.values(exCustomersData),
+                    data: exCustValues,
                     backgroundColor: 'rgba(255, 99, 132, 0.6)',
                     borderColor: 'rgba(255, 99, 132, 1)',
                     borderWidth: 1

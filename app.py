@@ -398,7 +398,20 @@ def get_dashboard_stats(df):
                      top_cust_s = recent_df.groupby('extracted_customer')[byte_col].apply(
                          lambda x: pd.to_numeric(x, errors='coerce').sum()
                      )
-                     top_customers_breakdown = (top_cust_s.nlargest(5) / (1024**3)).round(2).to_dict()
+                     top_5_cust_keys = top_cust_s.nlargest(5).index.tolist() # Get keys in order
+                     top_customers_breakdown = {}
+                     for cust in top_5_cust_keys:
+                        top_customers_breakdown[cust] = round(top_cust_s[cust] / (1024**3), 2)
+                        
+                     # We will convert this to list of dicts later if we face issues, but py3.7+ dicts preserve insertion order.
+                     # Wait, for Chart.js in template we use Object.keys/values, which DOES NOT guarantee order in JS for all browsers/versions similarly to arrays.
+                     # Better to use List of Dicts.
+                     top_customers_breakdown = []
+                     for cust in top_5_cust_keys:
+                         top_customers_breakdown.append({
+                             'customer': cust,
+                             'gb': round(top_cust_s[cust] / (1024**3), 2)
+                         })
 
         else:
              print("DEBUG: No suitable 'completed' date column found.")
@@ -466,7 +479,14 @@ def get_dashboard_stats(df):
                             top_ex_cust_s = expiring_df.groupby('extracted_customer')[ex_byte_col].apply(
                                 lambda x: pd.to_numeric(x, errors='coerce').sum()
                             )
-                            top_expiring_customers_breakdown = (top_ex_cust_s.nlargest(5) / (1024**3)).round(2).to_dict()
+                            top_5_ex_cust_keys = top_ex_cust_s.nlargest(5).index.tolist()
+                            
+                            top_expiring_customers_breakdown = []
+                            for cust in top_5_ex_cust_keys:
+                                top_expiring_customers_breakdown.append({
+                                    'customer': cust,
+                                    'gb': round(top_ex_cust_s[cust] / (1024**3), 2)
+                                })
 
                 except Exception as e:
                     print(f"Error calculating breakdown: {e}")
