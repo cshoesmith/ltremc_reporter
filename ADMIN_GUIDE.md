@@ -131,11 +131,5 @@ For troubleshooting ingestion issues, admins can view the live processing log.
 ### Reset Data
 To clear the current session and upload a new dataset, click **Reset Data** in the navigation menu. This purges the in-memory dataframe and returns the user to the Landing Page.
 
-### Versioning
-To increment the application version:
-1.  Open `config.json` in the root directory.
-2.  Update the `version` string (e.g., change `19.12.build22` to `19.12.build23`).
-3.  Restart the application serivce or rebuild the container.
-4.  The new version will automatically appear on the landing page below the file input card.
 
 ---

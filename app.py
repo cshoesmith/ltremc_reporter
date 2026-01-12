@@ -24,7 +24,8 @@ app.config['EXTRACT_FOLDER'] = EXTRACT_FOLDER
 # Global storage for the current session data (Simple in-memory store)
 DATA_STORE = {
     'df': None,
-    'dropped_files': []
+    'dropped_files': [],
+    'global_stats': None
 }
 
 # Task storage for background processes
@@ -54,6 +55,7 @@ def background_task(task_id, filepath):
             # Store Data
             DATA_STORE['df'] = df
             DATA_STORE['dropped_files'] = dropped_files
+            DATA_STORE['global_stats'] = None # Reset cache
             
             # Save Log
             TASKS[task_id]['percent'] = 100
@@ -714,7 +716,14 @@ def dashboard():
     if DATA_STORE['df'] is None:
         return redirect(url_for('index'))
     
-    stats = get_dashboard_stats(DATA_STORE['df'], full_df=DATA_STORE['df'])
+    # Check cache for Global Dashboard
+    if DATA_STORE['global_stats'] is None:
+        print("DEBUG: Calculating Global Dashboard Stats (Cache Miss)")
+        DATA_STORE['global_stats'] = get_dashboard_stats(DATA_STORE['df'], full_df=DATA_STORE['df'])
+    else:
+        print("DEBUG: Serving Global Dashboard Stats from Cache")
+        
+    stats = DATA_STORE['global_stats']
     return render_template('dashboard.html', stats=stats, dropped_files=DATA_STORE['dropped_files'], title="Global Dashboard")
 
 @app.route('/grid/<grid_name>')
@@ -758,6 +767,7 @@ def customer_report(customer_name):
 def reset():
     DATA_STORE['df'] = None
     DATA_STORE['dropped_files'] = []
+    DATA_STORE['global_stats'] = None
     return redirect(url_for('index'))
 
 @app.route('/api/log')
