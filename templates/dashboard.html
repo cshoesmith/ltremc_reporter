@@ -27,55 +27,67 @@
 
 <div class="row row-cols-1 row-cols-md-4 g-4 mb-4">
     <div class="col">
-        <div class="card text-white bg-primary h-100">
-            <div class="card-header">Total Backups</div>
+        <div class="card h-100 border-top-blue">
             <div class="card-body">
-                <h2 class="card-title">{{ stats.total_records }}</h2>
-                <small>Records Processed</small>
+                <div class="card-label mb-2">Total Backups</div>
+                <h2 class="card-title-lg text-primary mb-1">{{ "{:,}".format(stats.total_records) }}</h2>
+                <small class="text-muted">Records Processed</small>
             </div>
         </div>
     </div>
     <div class="col">
-        <div class="card text-white bg-success h-100">
-            <div class="card-header">Avamar Grids</div>
+        <div class="card h-100 border-top-green">
             <div class="card-body">
-                <div class="mb-2">
-                    <h3 class="card-title mb-0">{{ stats.total_grids }}</h3>
-                    <small style="font-size: 0.75rem;">Has Backups</small>
+                <div class="card-label mb-2">Avamar Grids</div>
+                <div>
+                    <a href="#" class="text-decoration-none text-dark" data-bs-toggle="modal" data-bs-target="#modalTotalGrids">
+                        <span class="h3 fw-light">{{ "{:,}".format(stats.total_grids) }}</span>
+                        <small class="text-muted ms-1">Total</small>
+                    </a>
                 </div>
-                <div class="border-top pt-2">
-                    <h3 class="card-title mb-0">{{ stats.recent_grids }}</h3>
-                    <small style="font-size: 0.75rem;">Has New Backups</small>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col">
-        <div class="card text-white bg-info h-100">
-            <div class="card-header">Customers</div>
-            <div class="card-body">
-                <div class="mb-2">
-                    <h3 class="card-title mb-0">{{ stats.total_customers }}</h3>
-                    <small style="font-size: 0.75rem;">With Backups</small>
-                </div>
-                <div class="border-top pt-2">
-                    <h3 class="card-title mb-0">{{ stats.recent_customers }}</h3>
-                    <small style="font-size: 0.75rem;">Active Recently</small>
+                <div class="mt-2 pt-2 border-top">
+                    <a href="#" class="text-decoration-none text-success" data-bs-toggle="modal" data-bs-target="#modalActiveGrids">
+                        <span class="h4 fw-light">{{ "{:,}".format(stats.recent_grids) }}</span>
+                        <small class="text-muted ms-1">Active</small>
+                    </a>
                 </div>
             </div>
         </div>
     </div>
     <div class="col">
-        <div class="card text-white bg-secondary h-100">
-            <div class="card-header">Clients</div>
+        <div class="card h-100 border-top-orange">
             <div class="card-body">
-                <div class="mb-2">
-                    <h3 class="card-title mb-0">{{ stats.total_clients }}</h3>
-                    <small style="font-size: 0.75rem;">Total Clients</small>
+                <div class="card-label mb-2">Customers</div>
+                <div>
+                     <a href="#" class="text-decoration-none text-dark" data-bs-toggle="modal" data-bs-target="#modalTotalCustomers">
+                        <span class="h3 fw-light">{{ "{:,}".format(stats.total_customers) }}</span>
+                        <small class="text-muted ms-1">Total</small>
+                     </a>
                 </div>
-                <div class="border-top pt-2">
-                    <h3 class="card-title mb-0">{{ stats.recent_clients }}</h3>
-                    <small style="font-size: 0.75rem;">Active Recently</small>
+                <div class="mt-2 pt-2 border-top">
+                     <a href="#" class="text-decoration-none text-warning" data-bs-toggle="modal" data-bs-target="#modalActiveCustomers">
+                        <span class="h4 fw-light">{{ "{:,}".format(stats.recent_customers) }}</span>
+                        <small class="text-muted ms-1">Active</small>
+                     </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card h-100 border-top-gray">
+            <div class="card-body">
+                <div class="card-label mb-2">Clients</div>
+                <div>
+                    <a href="#" class="text-decoration-none text-dark" data-bs-toggle="modal" data-bs-target="#modalTotalClients">
+                        <span class="h3 fw-light">{{ "{:,}".format(stats.total_clients) }}</span>
+                        <small class="text-muted ms-1">Total</small>
+                    </a>
+                </div>
+                <div class="mt-2 pt-2 border-top">
+                     <a href="#" class="text-decoration-none text-secondary" data-bs-toggle="modal" data-bs-target="#modalActiveClients">
+                        <span class="h4 fw-light">{{ "{:,}".format(stats.recent_clients) }}</span>
+                        <small class="text-muted ms-1">Active</small>
+                     </a>
                 </div>
             </div>
         </div>
@@ -118,14 +130,14 @@
                             <tr>
                                 <td class="text-start fw-bold text-secondary">Jobs</td>
                                 {% for key in stats.sorted_activity_keys %}
-                                    <td class="fw-bold">{{ stats.activity_breakdown.get(key, 0) }}</td>
+                                    <td class="fw-bold">{{ "{:,}".format(stats.activity_breakdown.get(key, 0)) }}</td>
                                 {% endfor %}
                             </tr>
                             <!-- Size Row -->
                             <tr>
                                 <td class="text-start fw-bold text-secondary">Size (GB)</td>
                                 {% for key in stats.sorted_activity_keys %}
-                                    <td>{{ stats.bytes_breakdown.get(key, 0) }}</td>
+                                    <td>{{ "{:,.2f}".format(stats.bytes_breakdown.get(key, 0)) }}</td>
                                 {% endfor %}
                             </tr>
                         </tbody>
@@ -143,9 +155,29 @@
          <div class="row">
             <div class="col-md-6 mb-3 mb-md-0">
                 <h6 class="text-center text-secondary mb-3">Top 5 Clients (GB Written)</h6>
-                <div style="height: 250px; position: relative; width: 100%;">
+                <div style="height: 250px; position: relative; width: 100%; margin-bottom: 20px;">
                     <canvas id="topClientsChart"></canvas>
                 </div>
+                
+                <table class="table table-sm table-striped small">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Client</th>
+                            <th class="text-end">GB</th>
+                            <th class="text-end">Oldest Expiry</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in stats.top_clients_breakdown %}
+                        <tr>
+                            <td>{{ item.client }}</td>
+                            <td class="text-end">{{ "{:,.2f}".format(item.gb) }}</td>
+                            <td class="text-end">{{ item.oldest_expiry }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
             </div>
             <div class="col-md-6">
                  <h6 class="text-center text-secondary mb-3">Top 5 Customers (GB Written)</h6>
@@ -154,6 +186,42 @@
                 </div>
             </div>
         </div>
+        
+        {% if stats.top_inactive_clients_breakdown %}
+        <hr>
+        <!-- Inactive Clients Row -->
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <h6 class="text-center text-secondary mb-3">Top 5 Inactive Clients (All Time GB)</h6>
+                <p class="text-center small text-muted">Clients with no backups in the last 7 days.</p>
+                <div style="height: 250px; position: relative; width: 100%; margin-bottom: 20px;">
+                    <canvas id="topInactiveClientsChart"></canvas>
+                </div>
+
+                <div class="table-responsive" style="width: 80%; margin: 0 auto;">
+                    <table class="table table-sm table-striped small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Client</th>
+                                <th class="text-end">GB</th>
+                                <th class="text-end">Oldest Expiry</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in stats.top_inactive_clients_breakdown %}
+                            <tr>
+                                <td>{{ item.client }}</td>
+                                <td class="text-end">{{ "{:,.2f}".format(item.gb) }}</td>
+                                <td class="text-end">{{ item.oldest_expiry }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
     </div>
 </div>
 
@@ -169,7 +237,7 @@
         <!-- Summary Row -->
         <div class="row align-items-center mb-4">
             <div class="col-md-2 text-center border-end">
-                <h2 class="display-6 fw-bold mb-0">{{ stats.upcoming_expirations }}</h2>
+                <h2 class="display-6 fw-bold mb-0">{{ "{:,}".format(stats.upcoming_expirations) }}</h2>
                 <small class="text-muted">Total Expiring</small>
             </div>
             <div class="col-md-10">
@@ -186,7 +254,7 @@
                         <tbody>
                             <tr>
                                 {% for key in stats.sorted_expiration_keys %}
-                                    <td class="fw-bold">{{ stats.expiration_breakdown.get(key, 0) }}</td>
+                                    <td class="fw-bold">{{ "{:,}".format(stats.expiration_breakdown.get(key, 0)) }}</td>
                                 {% endfor %}
                             </tr>
                         </tbody>
@@ -218,6 +286,39 @@
     </div>
 </div>
 
+<!-- Inventory Summary Section -->
+{% if stats.inventory_summary %}
+<h3 class="mt-4 mb-3 border-bottom pb-2">Inventory Summary</h3>
+<div class="card border-info mb-4">
+    <div class="card-header bg-info text-dark bg-opacity-10 border-info">
+        <h5 class="mb-0">Customer Breakdown</h5>
+    </div>
+    <div class="card-body p-0">
+         <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-striped table-hover mb-0">
+                <thead class="table-light text-secondary sticky-top" style="position: sticky; top: 0; z-index: 1;">
+                    <tr>
+                        <th class="border-bottom-0">Customer</th>
+                        <th class="text-end border-bottom-0">Client Count</th>
+                        <th class="text-end border-bottom-0">Backups Count</th>
+                        <th class="text-end border-bottom-0">Total Size (GB)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in stats.inventory_summary %}
+                    <tr>
+                        <td>{{ row.extracted_customer }}</td>
+                        <td class="text-end">{{ "{:,}".format(row.client_count) }}</td>
+                        <td class="text-end">{{ "{:,}".format(row.backup_count) }}</td>
+                        <td class="text-end">{{ "{:,.2f}".format(row.total_gb) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+         </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="alert alert-light border">
     <small class="text-muted">Statistics based on simulated report date: <strong>{{ stats.simulated_date }}</strong></small>
@@ -234,13 +335,17 @@
         const clientsData = {{ stats.top_clients_breakdown | tojson }};
         const clientsCtx = document.getElementById('topClientsChart').getContext('2d');
         
+        // Extract array of objects back to labels/data
+        const clientLabels = clientsData.map(item => item.client);
+        const clientValues = clientsData.map(item => item.gb);
+
         new Chart(clientsCtx, {
             type: 'bar',
             data: {
-                labels: Object.keys(clientsData),
+                labels: clientLabels,
                 datasets: [{
                     label: 'GB Written',
-                    data: Object.values(clientsData),
+                    data: clientValues,
                     backgroundColor: 'rgba(54, 162, 235, 0.6)',
                     borderColor: 'rgba(54, 162, 235, 1)',
                     borderWidth: 1
@@ -281,6 +386,39 @@
                 maintainAspectRatio: false
             }
         });
+
+        // --- Top Inactive Clients Chart ---
+        const inactiveData = {{ stats.top_inactive_clients_breakdown | tojson }};
+        // Check if element exists before creating chart (it's conditional in HTML)
+        const inactiveCanvas = document.getElementById('topInactiveClientsChart');
+        if (inactiveCanvas && inactiveData.length > 0) {
+            
+            const inactiveLabels = inactiveData.map(item => item.client);
+            const inactiveValues = inactiveData.map(item => item.gb);
+
+            const inactiveCtx = inactiveCanvas.getContext('2d');
+            new Chart(inactiveCtx, {
+                type: 'bar',
+                data: {
+                    labels: inactiveLabels,
+                    datasets: [{
+                        label: 'Total Inactive GB',
+                        data: inactiveValues,
+                        backgroundColor: 'rgba(153, 102, 255, 0.6)',
+                        borderColor: 'rgba(153, 102, 255, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', 
+                    scales: {
+                        x: { beginAtZero: true }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
 
         // --- Top Expiring Clients Chart ---
         const exClientsData = {{ stats.top_expiring_clients_breakdown | tojson }};
@@ -335,4 +473,41 @@
         });
     });
 </script>
+
+<!-- List Modals -->
+{% macro list_modal(id, title, items) %}
+<div class="modal fade" id="{{ id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ title }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if items %}
+                <ul class="list-group list-group-flush">
+                    {% for item in items %}
+                    <li class="list-group-item py-2 small">{{ item }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted text-center my-3">No items found.</p>
+                {% endif %}
+            </div>
+             <div class="modal-footer">
+                <div class="small text-muted me-auto">{{ items|length }} items</div>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{{ list_modal('modalTotalGrids', 'All Avamar Grids', stats.all_grids_list) }}
+{{ list_modal('modalActiveGrids', 'Active Avamar Grids (Last 7 Days)', stats.active_grids_list) }}
+{{ list_modal('modalTotalCustomers', 'All Customers', stats.all_customers_list) }}
+{{ list_modal('modalActiveCustomers', 'Active Customers (Last 7 Days)', stats.active_customers_list) }}
+{{ list_modal('modalTotalClients', 'All Clients', stats.all_clients_list) }}
+{{ list_modal('modalActiveClients', 'Active Clients (Last 7 Days)', stats.active_clients_list) }}
+
 {% endblock %}

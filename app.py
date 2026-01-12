@@ -1,23 +1,26 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 import os
+import json
 import pandas as pd
+import threading
+import uuid
+import time
 from datetime import datetime, timedelta
+from urllib.parse import unquote
 from utils import extract_and_process_tar, allowed_file
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = 'supersecretkey'  # Needed for flash messages
+app.secret_key = 'supersecretkey'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
 EXTRACT_FOLDER = os.path.join(BASE_DIR, 'extracted')
+CONFIG_FILE = os.path.join(BASE_DIR, 'config.json')
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['EXTRACT_FOLDER'] = EXTRACT_FOLDER
 
-# Date Override Configuration
-# Set to a date string (e.g., '2023-12-09') to simulate a specific "Today".
-# Set to None to use the actual system current date.
 app.config['DATE_OVERRIDE'] = '2023-09-12'
 
 # Global storage for the current session data (Simple in-memory store)
@@ -26,12 +29,85 @@ DATA_STORE = {
     'dropped_files': []
 }
 
+# Task storage for background processes
+TASKS = {}
+
+def background_task(task_id, filepath):
+    # Link the live log to the session store so "View Log" can see it immediately
+    DATA_STORE['process_log'] = TASKS[task_id]['log']
+
+    def update_progress(message, percent):
+        TASKS[task_id]['message'] = message
+        TASKS[task_id]['percent'] = percent
+        TASKS[task_id]['log'].append(f"{datetime.now().strftime('%H:%M:%S')} - {message}")
+
+    try:
+        TASKS[task_id]['state'] = 'processing'
+        TASKS[task_id]['message'] = 'Starting process'
+        
+        # Process the file
+        df, dropped_files, error = extract_and_process_tar(filepath, app.config['EXTRACT_FOLDER'], progress_callback=update_progress)
+        
+        if error:
+            TASKS[task_id]['state'] = 'failed'
+            TASKS[task_id]['error'] = error
+            DATA_STORE['process_log'] = TASKS[task_id]['log']
+        else:
+            # Store Data
+            DATA_STORE['df'] = df
+            DATA_STORE['dropped_files'] = dropped_files
+            
+            # Save Log
+            TASKS[task_id]['percent'] = 100
+            TASKS[task_id]['log'].append(f"{datetime.now().strftime('%H:%M:%S')} - Process completed successfully.")
+            DATA_STORE['process_log'] = TASKS[task_id]['log']
+            
+            TASKS[task_id]['state'] = 'completed'
+            TASKS[task_id]['message'] = 'Process completed successfully.'
+            TASKS[task_id]['filepath'] = filepath # return path so client can cookie it
+            
+    except Exception as e:
+        TASKS[task_id]['state'] = 'failed'
+        TASKS[task_id]['error'] = str(e)
+        TASKS[task_id]['log'].append(f"{datetime.now().strftime('%H:%M:%S')} - Exception: {str(e)}")
+        DATA_STORE['process_log'] = TASKS[task_id]['log']
+        print(f"Task {task_id} failed: {e}")
+
+# Config Management
+def load_config():
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            pass
+    return {'input_directory': '', 'recents': []}
+
+def save_config(config):
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f, indent=4)
+
+def update_recents(filepath):
+    config = load_config()
+    recents = config.get('recents', [])
+    # Remove if exists to move to top
+    if filepath in recents:
+        recents.remove(filepath)
+    recents.insert(0, filepath)
+    config['recents'] = recents[:10] # Keep last 10
+    save_config(config)
+
 # Ensure directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(EXTRACT_FOLDER, exist_ok=True)
 
 @app.context_processor
 def inject_menu_items():
+    config = load_config()
+    version = config.get('version', '')
+    
+    menu_data = dict(menu_grids=[], menu_customers=[], grid_col=None, app_version=version)
+
     if DATA_STORE['df'] is not None and not DATA_STORE['df'].empty:
         df = DATA_STORE['df']
         
@@ -52,8 +128,9 @@ def inject_menu_items():
         if 'extracted_customer' in df.columns:
             customers = sorted(df['extracted_customer'].dropna().unique().tolist())
         
-        return dict(menu_grids=grids, menu_customers=customers, grid_col=grid_col)
-    return dict(menu_grids=[], menu_customers=[], grid_col=None)
+        menu_data.update(dict(menu_grids=grids, menu_customers=customers, grid_col=grid_col))
+    
+    return menu_data
 
 def get_dashboard_stats(df):
     # Identify Grid Column
@@ -62,6 +139,8 @@ def get_dashboard_stats(df):
         if col.lower() == 'grid':
             grid_col = col
             break
+            
+    all_grids_list = sorted(df[grid_col].unique().tolist()) if grid_col else []
 
     # Calculate Customer Stats
     total_customers = 0
@@ -94,6 +173,7 @@ def get_dashboard_stats(df):
     bytes_breakdown = {}
     retention_types_breakdown = {}
     top_clients_breakdown = {}
+    top_inactive_clients_breakdown = {}
     top_customers_breakdown = {}
     expiration_breakdown = {}
     top_expiring_clients_breakdown = {}
@@ -117,11 +197,15 @@ def get_dashboard_stats(df):
     if 'extracted_customer' in df.columns:
         # Total Customers with backups in this report
         total_customers = df['extracted_customer'].nunique()
+        all_customers_list = sorted(df['extracted_customer'].unique().tolist())
 
         # Calculate Total Clients
         client_col_global = next((c for c in ['client_name', 'client', 'hostname'] if c in df.columns), None)
         if client_col_global:
             total_clients = df[client_col_global].nunique()
+            all_clients_list = sorted(df[client_col_global].unique().tolist())
+        else:
+            all_clients_list = []
         
         # 1. Recent Activity based on 'completed_date'
         # Check standard columns logic
@@ -137,6 +221,13 @@ def get_dashboard_stats(df):
                 break
         
         if date_col:
+             # Identify Expiry Column Early for Top Chart Details
+             expiry_col = None
+             for col in ['expiry_date', 'expire_at', 'expiration_date']:
+                 if col in df.columns:
+                     expiry_col = col
+                     break
+                     
              print(f"DEBUG: Found date column: {date_col}")
              # Try to convert to timestamp
              try:
@@ -167,15 +258,19 @@ def get_dashboard_stats(df):
              recent_mask = (backup_ts >= seven_days_ago_ts)
              recent_df = df.loc[recent_mask].copy()
              recent_customers = recent_df['extracted_customer'].nunique()
+             active_customers_list = sorted(recent_df['extracted_customer'].unique().tolist())
              recent_grids = recent_df[grid_col].nunique() if grid_col else 0
+             active_grids_list = sorted(recent_df[grid_col].unique().tolist()) if grid_col else []
              
              # Calculate Recent Clients (distinct from customers)
              client_col = next((c for c in ['client_name', 'client', 'hostname'] if c in recent_df.columns), None)
              if client_col:
                  recent_total_clients = recent_df[client_col].nunique()
+                 active_clients_list = sorted(recent_df[client_col].unique().tolist())
              else:
                  # Fallback: if we can extract from domain? For now just 0
                  recent_total_clients = 0
+                 active_clients_list = []
 
              # Calculate Recent Activity Breakdowns
              # Determine columns to use
@@ -220,17 +315,77 @@ def get_dashboard_stats(df):
                  # 4. Top 5 Clients & Customers (GB Written)
                  # Re-use byte_col from step 2 if available
                  if byte_col:
-                     # Top 5 Clients
+                     # Top 5 Clients (Active)
                      if client_col:
                          # Group by client, sum bytes
                          top_clients_s = recent_df.groupby(client_col)[byte_col].apply(
                              lambda x: pd.to_numeric(x, errors='coerce').sum()
                          )
-                         # Take top 5 and convert to GB
-                         top_clients_breakdown_raw = (top_clients_s.nlargest(5) / (1024**3)).round(2).to_dict()
-                         # Shorten Client Names (FQDN -> Hostname)
-                         top_clients_breakdown = {str(k).split('.')[0]: v for k, v in top_clients_breakdown_raw.items()}
-                     
+                         
+                         # Get Top 5 Keys
+                         top5_keys = top_clients_s.nlargest(5).index.tolist()
+                         
+                         top_clients_breakdown = []
+                         for client in top5_keys:
+                             size_gb = round(top_clients_s[client] / (1024**3), 2)
+                             
+                             # Find oldest backup expiry for this client in RECENT data? 
+                             # Or in all data? Assuming recent activity chart refers to recent backups.
+                             oldest_expiry = "N/A"
+                             if expiry_col:
+                                 # Get subset
+                                 c_df = recent_df[recent_df[client_col] == client]
+                                 try:
+                                     # Convert expiry col to datetime if not already suitable
+                                     # But dataframe might have string.
+                                     # Let's try direct sort if format allows, else convert
+                                     min_val = c_df[expiry_col].min()
+                                     oldest_expiry = str(min_val)
+                                 except:
+                                     pass
+                                     
+                             top_clients_breakdown.append({
+                                 'client': str(client).split('.')[0],
+                                 'gb': size_gb,
+                                 'oldest_expiry': oldest_expiry
+                             })
+                         
+                         # --- Top 5 Inactive Clients Logic ---
+                         # Identify clients in FULL df but NOT in recent_df
+                         all_clients = df[client_col].unique()
+                         active_clients = recent_df[client_col].unique()
+                         inactive_clients = set(all_clients) - set(active_clients)
+                         
+                         if inactive_clients:
+                             # Filter original df for these clients
+                             inactive_mask = df[client_col].isin(inactive_clients)
+                             inactive_df = df.loc[inactive_mask]
+                             
+                             top_inactive_s = inactive_df.groupby(client_col)[byte_col].apply(
+                                 lambda x: pd.to_numeric(x, errors='coerce').sum()
+                             )
+                             
+                             top5_inactive_keys = top_inactive_s.nlargest(5).index.tolist()
+                             
+                             top_inactive_clients_breakdown = []
+                             for client in top5_inactive_keys:
+                                 size_gb = round(top_inactive_s[client] / (1024**3), 2)
+                                 
+                                 oldest_expiry = "N/A"
+                                 if expiry_col:
+                                     c_df = inactive_df[inactive_df[client_col] == client]
+                                     try:
+                                        min_val = c_df[expiry_col].min()
+                                        oldest_expiry = str(min_val)
+                                     except:
+                                        pass
+                                 
+                                 top_inactive_clients_breakdown.append({
+                                     'client': str(client).split('.')[0],
+                                     'gb': size_gb,
+                                     'oldest_expiry': oldest_expiry
+                                 })
+
                      # Top 5 Customers
                      top_cust_s = recent_df.groupby('extracted_customer')[byte_col].apply(
                          lambda x: pd.to_numeric(x, errors='coerce').sum()
@@ -304,6 +459,39 @@ def get_dashboard_stats(df):
                     print(f"Error calculating breakdown: {e}")
                     expiration_breakdown = {}
 
+    # Inventory Summary (Customer Breakdown)
+    inventory_summary = []
+    if 'extracted_customer' in df.columns:
+         # Find byte col for summary
+         inv_byte_col = next((c for c in ['scanned_bytes', 'bytes_scanned'] if c in df.columns), None)
+         inv_client_col = next((c for c in ['client_name', 'client', 'hostname'] if c in df.columns), None)
+         
+         if inv_byte_col:
+             try:
+                 # Group
+                 aggs = {
+                     'backup_count': ('extracted_customer', 'count'),
+                     'total_bytes': (inv_byte_col, lambda x: pd.to_numeric(x, errors='coerce').sum())
+                 }
+                 if inv_client_col:
+                     aggs['client_count'] = (inv_client_col, 'nunique')
+
+                 summary_df = df.groupby('extracted_customer').agg(**aggs).reset_index()
+                 
+                 # Convert to GB and round
+                 summary_df['total_gb'] = (summary_df['total_bytes'] / (1024**3)).round(2)
+                 
+                 # Ensure client_count exists if not aggregated (edge case)
+                 if 'client_count' not in summary_df.columns:
+                     summary_df['client_count'] = 0
+
+                 # Sort by GB descending
+                 summary_df = summary_df.sort_values('total_gb', ascending=False)
+                 
+                 inventory_summary = summary_df[['extracted_customer', 'client_count', 'backup_count', 'total_gb']].to_dict('records')
+             except Exception as e:
+                 print(f"Error creating inventory summary: {e}")
+
     # General Stats
     # Sort activity_breakdown keys to ensure proper order in stats object (optional since template sorts)
     sorted_activity_keys = sorted(activity_breakdown.keys(), key=lambda k: activity_breakdown[k], reverse=True)
@@ -312,11 +500,17 @@ def get_dashboard_stats(df):
     stats = {
         'total_records': len(df),
         'total_grids': df[grid_col].nunique() if grid_col else 0,
+        'all_grids_list': all_grids_list,
         'recent_grids': recent_grids,
+        'active_grids_list': active_grids_list,
         'total_customers': total_customers,
+        'all_customers_list': all_customers_list,
         'total_clients': total_clients,
+        'all_clients_list': all_clients_list,
         'recent_customers': recent_customers,
+        'active_customers_list': active_customers_list,
         'recent_clients': recent_total_clients,
+        'active_clients_list': active_clients_list,
         'upcoming_expirations': upcoming_expirations,
         'expiration_breakdown': expiration_breakdown,
         'sorted_expiration_keys': sorted_expiration_keys,
@@ -324,10 +518,12 @@ def get_dashboard_stats(df):
         'sorted_activity_keys': sorted_activity_keys,
         'bytes_breakdown': bytes_breakdown,
         'retention_types_breakdown': retention_types_breakdown,
-        'top_clients_breakdown': top_clients_breakdown,
+        'top_clients_breakdown': top_clients_breakdown, # Now a list of dicts
+        'top_inactive_clients_breakdown': top_inactive_clients_breakdown, # Now a list of dicts
         'top_customers_breakdown': top_customers_breakdown,
         'top_expiring_clients_breakdown': top_expiring_clients_breakdown,
         'top_expiring_customers_breakdown': top_expiring_customers_breakdown,
+        'inventory_summary': inventory_summary,
         'simulated_date': TODAY.strftime('%Y-%m-%d'),
         # Add column names for debugging in template if needed
         'debug_cols': list(df.columns) if not df.empty else [],
@@ -340,7 +536,93 @@ def index():
     # If we have data, go to dashboard, else show upload
     if DATA_STORE['df'] is not None:
          return redirect(url_for('dashboard'))
-    return render_template('index.html')
+    
+    config = load_config()
+    file_options = []
+    input_dir = config.get('input_directory')
+    
+    if input_dir and os.path.exists(input_dir) and os.path.isdir(input_dir):
+        try:
+            for f in os.listdir(input_dir):
+                if f.lower().endswith(('.tar.gz', '.tgz', '.tar')):
+                    file_options.append(f)
+        except Exception as e:
+            print(f"Error reading input directory: {e}")
+
+    # Use cookie for recents if available
+    cookie_recents = request.cookies.get('recents')
+    recents_list = []
+    if cookie_recents:
+        try:
+            # Decode if urlencoded
+            decoded_cookie = unquote(cookie_recents)
+            recents_list = json.loads(decoded_cookie)
+        except:
+            # Fallback for unencoded
+            try:
+                recents_list = json.loads(cookie_recents)
+            except:
+                pass
+            
+    # Fallback to config if cookie is empty/invalid (or merge?)
+    # For now, let's just use cookie if present, else empty since user said config one is broken/empty
+    # But we can display the config one as backup if needed.
+    # The requirement is "The recent file lists is remaining empty" -> switch to cookie.
+    
+    # We pass 'recents_list' which overrides config.recents within the template context logic
+    # Actually, we should probably update the config object passed to template
+    if recents_list:
+        config['recents'] = recents_list
+            
+    return render_template('index.html', config=config, file_options=file_options)
+
+@app.route('/update_settings', methods=['POST'])
+def update_settings():
+    input_directory = request.form.get('input_directory', '').strip()
+    config = load_config()
+    config['input_directory'] = input_directory
+    save_config(config)
+    flash('Settings updated successfully.')
+    return redirect(url_for('index'))
+
+@app.route('/load_local', methods=['POST'])
+def load_local():
+    # Can come from either the 'select from storage' list (filename) 
+    # OR the 'recents' list (full path)
+    filename = request.form.get('filename')
+    filepath_param = request.form.get('filepath')
+    
+    config = load_config()
+    target_path = None
+    
+    if filepath_param:
+        # Full path provided (from Recents)
+        target_path = filepath_param
+    elif filename:
+        # Filename provided (from Storage list)
+        input_dir = config.get('input_directory')
+        if input_dir:
+            target_path = os.path.join(input_dir, filename)
+            
+    if target_path and os.path.exists(target_path):
+        # Create Task
+        task_id = str(uuid.uuid4())
+        TASKS[task_id] = {
+            'state': 'pending', 
+            'percent': 0, 
+            'message': 'Initializing', 
+            'log': [],
+            'error': None
+        }
+        
+        # Start Thread
+        t = threading.Thread(target=background_task, args=(task_id, target_path))
+        t.start()
+        
+        return redirect(url_for('processing', task_id=task_id))
+    else:
+        flash('File not found or invalid path.')
+        return redirect(url_for('index'))
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -359,22 +641,37 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
-        # Process the file
-        df, dropped_files, error = extract_and_process_tar(filepath, app.config['EXTRACT_FOLDER'])
+        # Create Task
+        task_id = str(uuid.uuid4())
+        TASKS[task_id] = {
+            'state': 'pending', 
+            'percent': 0, 
+            'message': 'Initializing', 
+            'log': [],
+            'error': None
+        }
         
-        if error:
-            flash(error)
-            return redirect(url_for('index'))
-            
-        # Store Data
-        DATA_STORE['df'] = df
-        DATA_STORE['dropped_files'] = dropped_files
+        # Start Thread
+        t = threading.Thread(target=background_task, args=(task_id, filepath))
+        t.start()
         
-        flash(f"Successfully loaded {len(df)} records. Dropped {len(dropped_files)} outdated files.")
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('processing', task_id=task_id))
     else:
         flash('Invalid file type. Please upload a .tar.gz file.')
         return redirect(url_for('index'))
+
+@app.route('/processing/<task_id>')
+def processing(task_id):
+    if task_id not in TASKS:
+        flash("Invalid processing task.")
+        return redirect(url_for('index'))
+    return render_template('processing.html', task_id=task_id)
+
+@app.route('/status/<task_id>')
+def task_status(task_id):
+    if task_id not in TASKS:
+        return jsonify({'state': 'error', 'message': 'Unknown task'}), 404
+    return jsonify(TASKS[task_id])
 
 @app.route('/dashboard')
 def dashboard():
@@ -421,10 +718,16 @@ def customer_report(customer_name):
         flash("Could not identify Customer column.")
         return redirect(url_for('dashboard'))
 
-@app.route('/reset')def reset():
+@app.route('/reset')
+def reset():
     DATA_STORE['df'] = None
     DATA_STORE['dropped_files'] = []
     return redirect(url_for('index'))
+
+@app.route('/api/log')
+def get_log():
+    log_data = DATA_STORE.get('process_log', [])
+    return jsonify(log=log_data)
 
 if __name__ == '__main__':
     app.run(debug=True)
