@@ -55,54 +55,7 @@ def inject_menu_items():
         return dict(menu_grids=grids, menu_customers=customers, grid_col=grid_col)
     return dict(menu_grids=[], menu_customers=[], grid_col=None)
 
-@app.route('/')
-def index():
-    # If we have data, go to dashboard, else show upload
-    if DATA_STORE['df'] is not None:
-         return redirect(url_for('dashboard'))
-    return render_template('index.html')
-
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        flash('No file part')
-        return redirect(request.url)
-    
-    file = request.files['file']
-    
-    if file.filename == '':
-        flash('No selected file')
-        return redirect(request.url)
-    
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
-        # Process the file
-        df, dropped_files, error = extract_and_process_tar(filepath, app.config['EXTRACT_FOLDER'])
-        
-        if error:
-            flash(error)
-            return redirect(url_for('index'))
-            
-        # Store Data
-        DATA_STORE['df'] = df
-        DATA_STORE['dropped_files'] = dropped_files
-        
-        flash(f"Successfully loaded {len(df)} records. Dropped {len(dropped_files)} outdated files.")
-        return redirect(url_for('dashboard'))
-    else:
-        flash('Invalid file type. Please upload a .tar.gz file.')
-        return redirect(url_for('index'))
-
-@app.route('/dashboard')
-def dashboard():
-    if DATA_STORE['df'] is None:
-        return redirect(url_for('index'))
-    
-    df = DATA_STORE['df']
-    
+def get_dashboard_stats(df):
     # Identify Grid Column
     grid_col = None
     for col in df.columns:
@@ -380,14 +333,56 @@ def dashboard():
         'debug_cols': list(df.columns) if not df.empty else [],
         'is_override': bool(app.config.get('DATE_OVERRIDE'))
     }
+    return stats
 
+@app.route('/')
+def index():
+    # If we have data, go to dashboard, else show upload
+    if DATA_STORE['df'] is not None:
+         return redirect(url_for('dashboard'))
+    return render_template('index.html')
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        flash('No file part')
+        return redirect(request.url)
     
-    # Try to calculate logical capacity if column exists
-    for col in ['bytes_scanned', 'capacity', 'logical_capacity']:
-        # Case insensitive check would be better, but keeping simple
-        pass
+    file = request.files['file']
+    
+    if file.filename == '':
+        flash('No selected file')
+        return redirect(request.url)
+    
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        # Process the file
+        df, dropped_files, error = extract_and_process_tar(filepath, app.config['EXTRACT_FOLDER'])
+        
+        if error:
+            flash(error)
+            return redirect(url_for('index'))
+            
+        # Store Data
+        DATA_STORE['df'] = df
+        DATA_STORE['dropped_files'] = dropped_files
+        
+        flash(f"Successfully loaded {len(df)} records. Dropped {len(dropped_files)} outdated files.")
+        return redirect(url_for('dashboard'))
+    else:
+        flash('Invalid file type. Please upload a .tar.gz file.')
+        return redirect(url_for('index'))
 
-    return render_template('dashboard.html', stats=stats, dropped_files=DATA_STORE['dropped_files'])
+@app.route('/dashboard')
+def dashboard():
+    if DATA_STORE['df'] is None:
+        return redirect(url_for('index'))
+    
+    stats = get_dashboard_stats(DATA_STORE['df'])
+    return render_template('dashboard.html', stats=stats, dropped_files=DATA_STORE['dropped_files'], title="Global Dashboard")
 
 @app.route('/grid/<grid_name>')
 def grid_report(grid_name):
@@ -408,10 +403,8 @@ def grid_report(grid_name):
         return redirect(url_for('dashboard'))
 
     grid_df = df[df[grid_col] == grid_name]
-    
-    table_html = grid_df.head(100).to_html(classes='table table-striped table-sm', index=False)
-    
-    return render_template('report_generic.html', title=f"Avamar Grid: {grid_name}", table=table_html)
+    stats = get_dashboard_stats(grid_df)
+    return render_template('dashboard.html', stats=stats, dropped_files=[], title=f"Avamar Grid: {grid_name}")
 
 @app.route('/customer/<path:customer_name>')
 def customer_report(customer_name):
@@ -422,14 +415,13 @@ def customer_report(customer_name):
     
     if 'extracted_customer' in df.columns:
         cust_df = df[df['extracted_customer'] == customer_name]
-        table_html = cust_df.drop(columns=['extracted_customer']).head(100).to_html(classes='table table-striped table-sm', index=False)
-        return render_template('report_generic.html', title=f"Customer Report: {customer_name}", table=table_html)
+        stats = get_dashboard_stats(cust_df)
+        return render_template('dashboard.html', stats=stats, dropped_files=[], title=f"Customer Report: {customer_name}")
     else:
         flash("Could not identify Customer column.")
         return redirect(url_for('dashboard'))
 
-@app.route('/reset')
-def reset():
+@app.route('/reset')def reset():
     DATA_STORE['df'] = None
     DATA_STORE['dropped_files'] = []
     return redirect(url_for('index'))

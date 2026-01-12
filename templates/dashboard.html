@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1 class="mb-4">LTREMC Avamar Dashboard</h1>
+<h1 class="mb-4">{{ title if title else 'LTREMC Avamar Dashboard' }}</h1>
 
 {% if stats.is_override %}
 <div class="alert alert-warning border border-warning">
