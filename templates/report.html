@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Report Dashboard</h1>
+
+{% if dropped_files %}
+<div class="alert alert-warning" role="alert">
+    <h5 class="alert-heading">Filtered Files</h5>
+    <p>The following files were excluded because they are older than 12 hours relative to the most recent data:</p>
+    <hr>
+    <ul class="mb-0">
+        {% for file in dropped_files %}
+            <li>{{ file }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">Overview</div>
+            <div class="card-body">
+                <canvas id="overviewChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for table in tables %}
+<div class="card mb-4">
+    <div class="card-header">
+        <strong>File:</strong> {{ table.filename }} <span class="badge bg-secondary">{{ table.rows }} rows</span>
+    </div>
+    <div class="card-body overflow-auto">
+        <h5>Preview</h5>
+        {{ table.preview | safe }}
+        
+        <!-- Placeholder for specific file charts if we knew columns -->
+        <!-- 
+        <canvas id="chart-{{ loop.index }}"></canvas> 
+        -->
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Data for overview chart
+    const fileNames = {{ tables | map(attribute='filename') | list | tojson }};
+    const rowCounts = {{ tables | map(attribute='rows') | list | tojson }};
+
+    const ctx = document.getElementById('overviewChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: fileNames,
+            datasets: [{
+                label: 'Number of Records',
+                data: rowCounts,
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

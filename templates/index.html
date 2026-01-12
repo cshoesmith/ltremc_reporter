@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                Upload Data Archive
+            </div>
+            <div class="card-body">
+                <p class="card-text">Please upload the 5MB .tar.gz file containing the CSV reports.</p>
+                <form action="/upload" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Select .tar.gz file</label>
+                        <input class="form-control" type="file" id="file" name="file" accept=".tar.gz, .tgz, .tar" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Generate Report</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

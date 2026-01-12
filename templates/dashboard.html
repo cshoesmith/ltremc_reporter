@@ -1,0 +1,338 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="mb-4">LTREMC Avamar Dashboard</h1>
+
+{% if stats.is_override %}
+<div class="alert alert-warning border border-warning">
+    <strong>⚠️ DEMO MODE ACTIVE</strong>
+    <br>
+    The application is currently running with a simulated system date of <strong>{{ stats.simulated_date }}</strong>.
+    <br>
+    All "Recent Activity" and "Expiring Soon" calculations are relative to this specific date, not the actual current time.
+</div>
+{% endif %}
+
+{% if dropped_files %}
+<div class="alert alert-warning" role="alert">
+    <h5 class="alert-heading">Filtered Files</h5>
+    <p>The following files were excluded being >12 hours older than the dataset max time:</p>
+    <ul>
+        {% for file in dropped_files %}
+            <li>{{ file }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="row row-cols-1 row-cols-md-4 g-4 mb-4">
+    <div class="col">
+        <div class="card text-white bg-primary h-100">
+            <div class="card-header">Total Backups</div>
+            <div class="card-body">
+                <h2 class="card-title">{{ stats.total_records }}</h2>
+                <small>Records Processed</small>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card text-white bg-success h-100">
+            <div class="card-header">Avamar Grids</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <h3 class="card-title mb-0">{{ stats.total_grids }}</h3>
+                    <small style="font-size: 0.75rem;">Has Backups</small>
+                </div>
+                <div class="border-top pt-2">
+                    <h3 class="card-title mb-0">{{ stats.recent_grids }}</h3>
+                    <small style="font-size: 0.75rem;">Has New Backups</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card text-white bg-info h-100">
+            <div class="card-header">Customers</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <h3 class="card-title mb-0">{{ stats.total_customers }}</h3>
+                    <small style="font-size: 0.75rem;">With Backups</small>
+                </div>
+                <div class="border-top pt-2">
+                    <h3 class="card-title mb-0">{{ stats.recent_customers }}</h3>
+                    <small style="font-size: 0.75rem;">Active Recently</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card text-white bg-secondary h-100">
+            <div class="card-header">Clients</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <h3 class="card-title mb-0">{{ stats.total_clients }}</h3>
+                    <small style="font-size: 0.75rem;">Total Clients</small>
+                </div>
+                <div class="border-top pt-2">
+                    <h3 class="card-title mb-0">{{ stats.recent_clients }}</h3>
+                    <small style="font-size: 0.75rem;">Active Recently</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<!-- Backup Activity Section -->
+<h3 class="mt-4 mb-3 border-bottom pb-2">Backup Activity</h3>
+
+<div class="card border-primary mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Recent Activity (Last 7 Days)</h5>
+    </div>
+    <div class="card-body">
+        <!-- Summary Row -->
+        <div class="row align-items-center mb-4">
+            <div class="col-md-2 text-center border-end">
+                <h2 class="display-6 fw-bold mb-0">
+                    {{ stats.activity_breakdown.values() | sum }}
+                </h2>
+                <small class="text-muted">Total Jobs</small>
+            </div>
+            <div class="col-md-10">
+                 {% if stats.activity_breakdown %}
+                 <div class="table-responsive">
+                    <table class="table table-bordered text-center mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="small text-start">Metric</th>
+                                {% for key in stats.sorted_activity_keys %}
+                                    <th class="small">{{ key }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Jobs Row -->
+                            <tr>
+                                <td class="text-start fw-bold text-secondary">Jobs</td>
+                                {% for key in stats.sorted_activity_keys %}
+                                    <td class="fw-bold">{{ stats.activity_breakdown.get(key, 0) }}</td>
+                                {% endfor %}
+                            </tr>
+                            <!-- Size Row -->
+                            <tr>
+                                <td class="text-start fw-bold text-secondary">Size (GB)</td>
+                                {% for key in stats.sorted_activity_keys %}
+                                    <td>{{ stats.bytes_breakdown.get(key, 0) }}</td>
+                                {% endfor %}
+                            </tr>
+                        </tbody>
+                    </table>
+                 </div>
+                 {% else %}
+                 <p class="text-center text-muted my-3">No recent activity data available.</p>
+                 {% endif %}
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Charts Row -->
+         <div class="row">
+            <div class="col-md-6 mb-3 mb-md-0">
+                <h6 class="text-center text-secondary mb-3">Top 5 Clients (GB Written)</h6>
+                <div style="height: 250px; position: relative; width: 100%;">
+                    <canvas id="topClientsChart"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6">
+                 <h6 class="text-center text-secondary mb-3">Top 5 Customers (GB Written)</h6>
+                <div style="height: 250px; position: relative; width: 100%;">
+                    <canvas id="topCustomersChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Expiration Activity Section -->
+<h3 class="mt-4 mb-3 border-bottom pb-2">Expiration Activity</h3>
+
+<div class="card border-warning mb-4">
+    <div class="card-header bg-warning text-white">
+        <h5 class="mb-0">Expiring Soon (Next 7 Days)</h5>
+    </div>
+    <div class="card-body">
+        <!-- Summary Row -->
+        <div class="row align-items-center mb-4">
+            <div class="col-md-2 text-center border-end">
+                <h2 class="display-6 fw-bold mb-0">{{ stats.upcoming_expirations }}</h2>
+                <small class="text-muted">Total Expiring</small>
+            </div>
+            <div class="col-md-10">
+                 {% if stats.expiration_breakdown %}
+                 <div class="table-responsive">
+                    <table class="table table-bordered text-center mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                {% for key in stats.sorted_expiration_keys %}
+                                    <th class="small">{{ key }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                {% for key in stats.sorted_expiration_keys %}
+                                    <td class="fw-bold">{{ stats.expiration_breakdown.get(key, 0) }}</td>
+                                {% endfor %}
+                            </tr>
+                        </tbody>
+                    </table>
+                 </div>
+                 {% else %}
+                 <p class="text-center text-muted my-3">No expiration breakdown data active.</p>
+                 {% endif %}
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Charts Row -->
+         <div class="row">
+            <div class="col-md-6 mb-3 mb-md-0">
+                <h6 class="text-center text-secondary mb-3">Top 5 Expiring Clients (GB Releasable)</h6>
+                <div style="height: 250px; position: relative; width: 100%;">
+                    <canvas id="topExpiringClientsChart"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-center text-secondary mb-3">Top 5 Expiring Customers (GB Releasable)</h6>
+                <div style="height: 250px; position: relative; width: 100%;">
+                    <canvas id="topExpiringCustomersChart"></canvas>
+                </div>
+            </div>
+         </div>
+    </div>
+</div>
+
+
+<div class="alert alert-light border">
+    <small class="text-muted">Statistics based on simulated report date: <strong>{{ stats.simulated_date }}</strong></small>
+</div>
+
+<div class="alert alert-info">
+    Use the navigation menu above to drill down into <strong>Customer</strong> specific reports or view raw data per <strong>Avamar Grid</strong>.
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- Top Clients Chart ---
+        const clientsData = {{ stats.top_clients_breakdown | tojson }};
+        const clientsCtx = document.getElementById('topClientsChart').getContext('2d');
+        
+        new Chart(clientsCtx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(clientsData),
+                datasets: [{
+                    label: 'GB Written',
+                    data: Object.values(clientsData),
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                scales: {
+                    x: { beginAtZero: true }
+                },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // --- Top Customers Chart ---
+        const customersData = {{ stats.top_customers_breakdown | tojson }};
+        const customersCtx = document.getElementById('topCustomersChart').getContext('2d');
+        
+        new Chart(customersCtx, {
+            type: 'bar', 
+            data: {
+                labels: Object.keys(customersData),
+                datasets: [{
+                    label: 'GB Written',
+                    data: Object.values(customersData),
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y', 
+                scales: {
+                    x: { beginAtZero: true }
+                },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // --- Top Expiring Clients Chart ---
+        const exClientsData = {{ stats.top_expiring_clients_breakdown | tojson }};
+        const exClientsCtx = document.getElementById('topExpiringClientsChart').getContext('2d');
+        
+        new Chart(exClientsCtx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(exClientsData),
+                datasets: [{
+                    label: 'GB Releasable',
+                    data: Object.values(exClientsData),
+                    backgroundColor: 'rgba(255, 159, 64, 0.6)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                scales: {
+                    x: { beginAtZero: true }
+                },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // --- Top Expiring Customers Chart ---
+        const exCustomersData = {{ stats.top_expiring_customers_breakdown | tojson }};
+        const exCustomersCtx = document.getElementById('topExpiringCustomersChart').getContext('2d');
+        
+        new Chart(exCustomersCtx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(exCustomersData),
+                datasets: [{
+                    label: 'GB Releasable',
+                    data: Object.values(exCustomersData),
+                    backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                scales: {
+                    x: { beginAtZero: true }
+                },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    });
+</script>
+{% endblock %}
