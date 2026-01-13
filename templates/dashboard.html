@@ -341,7 +341,7 @@
 {% endif %}
 
 <div class="alert alert-light border">
-    <small class="text-muted">Statistics based on simulated report date: <strong>{{ stats.simulated_date }}</strong></small>
+    <small class="text-muted">Statistics based on report date: <strong>{{ stats.simulated_date }}</strong></small>
 </div>
 
 <div class="alert alert-info">
@@ -575,6 +575,28 @@
 {{ list_modal('modalTotalClients', 'All Clients', stats.all_clients_list) }}
 {{ list_modal('modalActiveClients', 'Active Clients (Last 7 Days)', stats.active_clients_list) }}
 
+<!-- PDF Success Modal -->
+<div class="modal fade" id="pdfSuccessModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title text-success">
+                    Export Complete
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>The PDF report has been generated and saved.</p>
+                <p class="text-muted small mb-0">Please check your browser's default download location (usually the Downloads folder).</p>
+                <p class="text-muted small mt-2">Filename: <span id="pdfDownloadName" class="fw-bold"></span></p>
+            </div>
+            <div class="modal-footer border-top-0">
+                <button type="button" class="btn btn-primary px-4" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -590,6 +612,23 @@
     }
 
     function exportPDF(filename) {
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'export-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'white';
+        overlay.style.zIndex = '9999';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.flexDirection = 'column';
+        overlay.innerHTML = '<div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div><h5 class="text-muted">Generating PDF Report...</h5><p class="text-muted small">This may take a few seconds.</p>';
+        document.body.appendChild(overlay);
+
         document.body.classList.add('pdf-export-mode');
         // Scroll to top to ensure capture starts from top
         window.scrollTo(0,0);
@@ -612,7 +651,7 @@
             pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
         };
 
-        // UI Feedback
+        // UI Feedback - Button (Keeping this but overlay covers it)
         const btn = event.currentTarget;
         const orgHtml = btn.innerHTML;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
@@ -624,14 +663,28 @@
                 document.body.classList.remove('pdf-export-mode');
                 document.body.style.cursor = 'default';
                 btn.innerHTML = orgHtml;
+                
+                // Remove overlay
+                if (document.getElementById('export-overlay')) {
+                    document.getElementById('export-overlay').remove();
+                }
+
+                // Show Success Modal
+                document.getElementById('pdfDownloadName').innerText = filename;
+                var pdfModal = new bootstrap.Modal(document.getElementById('pdfSuccessModal'));
+                pdfModal.show();
             }).catch(err => {
                 console.error('PDF Export Error:', err);
                 alert('Error generating PDF.');
                 document.body.classList.remove('pdf-export-mode');
                 document.body.style.cursor = 'default';
                 btn.innerHTML = orgHtml;
+                // Remove overlay
+                if (document.getElementById('export-overlay')) {
+                    document.getElementById('export-overlay').remove();
+                }
             });
-        }, 100);
+        }, 500); // Increased timeout to ensure overlay renders effectively before heavy lifting
     }
 </script>
 {% endblock %}

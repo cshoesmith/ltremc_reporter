@@ -11,38 +11,35 @@
             <p class="text-muted" style="margin-top: -40px;">Advanced Analytics for Avamar Environments</p>
         </div>
 
-        <div class="card shadow border-0 border-top-blue">
-            <div class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                     <h5 class="fw-normal text-secondary mb-0">Data Ingestion</h5>
-                     <button type="button" class="btn btn-sm btn-link text-decoration-none text-muted" data-bs-toggle="modal" data-bs-target="#settingsModal">
-                        Settings
-                     </button>
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                     <h5 class="fw-normal text-dark mb-0">Data Ingestion</h5>
+                     <a href="#" class="text-decoration-none text-muted small fw-bold" data-bs-toggle="modal" data-bs-target="#settingsModal">Settings</a>
                 </div>
-                <ul class="nav nav-tabs card-header-tabs" id="inputTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" type="button" role="tab">Upload File</button>
+                
+                <ul class="nav nav-tabs border-0 mb-4" id="inputTabs" role="tablist">
+                    <li class="nav-item me-3" role="presentation">
+                        <button class="nav-link active px-0 border-0 border-bottom border-primary border-2 text-dark fw-bold rounded-0" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" type="button" role="tab">Upload File</button>
+                    </li>
+                    <li class="nav-item me-3" role="presentation">
+                        <button class="nav-link px-0 border-0 text-muted rounded-0" id="storage-tab" data-bs-toggle="tab" data-bs-target="#storage" type="button" role="tab">Select from Storage</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="storage-tab" data-bs-toggle="tab" data-bs-target="#storage" type="button" role="tab">Select from Storage</button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="recent-tab" data-bs-toggle="tab" data-bs-target="#recent" type="button" role="tab">Recent Files</button>
+                        <button class="nav-link px-0 border-0 text-muted rounded-0" id="recent-tab" data-bs-toggle="tab" data-bs-target="#recent" type="button" role="tab">Recent Files</button>
                     </li>
                 </ul>
-            </div>
-            <div class="card-body">
+
                 <div class="tab-content" id="inputTabsContent">
                     
                     <!-- Upload Tab -->
                     <div class="tab-pane fade show active" id="upload" role="tabpanel">
-                        <p class="card-text">Please upload the .tar.gz file containing the CSV reports.</p>
+                        <p class="text-muted small mb-3">Please upload 1 file</p>
                         <form action="/upload" method="post" enctype="multipart/form-data">
                             <div class="mb-3">
-                                <label for="file" class="form-label">Select .tar.gz file</label>
-                                <input class="form-control" type="file" id="file" name="file" accept=".tar.gz, .tgz, .tar" required>
+                                <input class="form-control bg-light border-0 py-2" type="file" id="file" name="file" accept=".tar.gz, .tgz, .tar" required>
                             </div>
-                            <button type="submit" class="btn btn-primary">Generate Report</button>
+                            <button type="submit" class="btn btn-primary w-100">Generate Report</button>
                         </form>
                     </div>
 
