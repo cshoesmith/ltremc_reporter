@@ -18,10 +18,35 @@ New-Item -ItemType Directory -Path $WHEELS_DIR | Out-Null
 
 # 2. Copy Application Files
 Write-Host "[-] Copying application files..."
-$ExcludeItems = @(".venv", "__pycache__", ".git", "dist", "tests", "*.pyc", "*.ps1")
-Get-ChildItem -Path . -Exclude $ExcludeItems | ForEach-Object {
-    if ($_.Name -ne "dist" -and $_.Name -ne ".venv" -and $_.Name -ne ".git" -and $_.Name -ne "config.json") {
-        Copy-Item -Path $_.FullName -Destination $TARGET_DIR -Recurse
+
+# Explicitly define what to copy to avoid including dev artifacts (release_builds, etc.)
+$FilesToCopy = @(
+    "app.py",
+    "utils.py",
+    "install.sh",
+    "requirements.rhel8.python36.txt",
+    "README.md",
+    "ADMIN_GUIDE.md"
+)
+
+$FoldersToCopy = @(
+    "templates",
+    "static"
+)
+
+foreach ($File in $FilesToCopy) {
+    if (Test-Path $File) {
+        Copy-Item -Path $File -Destination $TARGET_DIR
+    } else {
+        Write-Warning "File not found: $File"
+    }
+}
+
+foreach ($Folder in $FoldersToCopy) {
+    if (Test-Path $Folder) {
+        Copy-Item -Path $Folder -Destination "$TARGET_DIR\$Folder" -Recurse
+    } else {
+        Write-Warning "Folder not found: $Folder"
     }
 }
 
