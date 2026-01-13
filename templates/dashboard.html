@@ -11,21 +11,22 @@
 {% endif %}
 {% set print_filename = 'LTREMC_' ~ stats.simulated_date ~ '_' ~ filename_suffix ~ '.pdf' %}
 
+<div class="d-flex justify-content-end mb-2 d-print-none" data-html2canvas-ignore="true">
+    <button onclick="printReport('{{ print_filename }}')" class="btn btn-outline-secondary btn-sm me-1" title="Print">
+        <i class="bi bi-printer-fill"></i>
+    </button>
+    <button onclick="exportPDF('{{ print_filename }}')" class="btn btn-outline-danger btn-sm" title="Export to PDF">
+        <i class="bi bi-file-earmark-pdf-fill"></i>
+    </button>
+</div>
+
 <div class="d-flex justify-content-between align-items-end mb-4 print-hero-header">
     <div class="d-flex align-items-center">
         <img src="{{ url_for('static', filename='img/logo-no-background.png') }}" alt="Logo" style="height: 60px; width: auto;" class="me-3">
-        <h1 class="mb-0" style="line-height: 1.1;">{{ title if title else 'LTREMC Avamar Dashboard' }}</h1>
+        <h1 class="mb-0 fs-3" style="line-height: 1.1;">{{ title if title else 'LTREMC Avamar Dashboard' }}</h1>
     </div>
 
-    <div class="text-end d-flex flex-column align-items-end">
-        <div class="mb-2 d-print-none" data-html2canvas-ignore="true">
-            <button onclick="printReport('{{ print_filename }}')" class="btn btn-outline-secondary btn-sm me-1" title="Print">
-                <i class="bi bi-printer-fill"></i>
-            </button>
-            <button onclick="exportPDF('{{ print_filename }}')" class="btn btn-outline-danger btn-sm" title="Export to PDF">
-                <i class="bi bi-file-earmark-pdf-fill"></i>
-            </button>
-        </div>
+    <div class="text-end d-flex flex-column align-items-end flex-shrink-0 text-nowrap ms-3">
         {% if stats.is_override %}
         <div class="text-muted small">Report Date: <strong>{{ stats.simulated_date }}</strong></div>
         {% else %}
@@ -117,7 +118,9 @@
 
 
 
+
 <!-- Backup Activity Section -->
+<!-- Removed print-section wrapper to allow splitting -->
 <h3 class="mt-4 mb-3 border-bottom pb-2">Backup Activity</h3>
 
 <div class="card border-primary mb-4">
@@ -126,7 +129,7 @@
     </div>
     <div class="card-body">
         <!-- Summary Row -->
-        <div class="row align-items-center mb-4">
+        <div class="row align-items-center mb-4 print-avoid-break">
             <div class="col-md-2 text-center border-end">
                 <h2 class="display-6 fw-bold mb-0">
                     {{ stats.activity_breakdown.values() | sum }}
@@ -172,7 +175,7 @@
         <hr>
 
         <!-- Charts Row -->
-         <div class="row">
+         <div class="row print-avoid-break">
             <div class="col-md-6 mb-3 mb-md-0">
                 <h6 class="text-center text-secondary mb-3">Top 5 Clients (GB Written)</h6>
                 <div style="height: 250px; position: relative; width: 100%; margin-bottom: 20px;">
@@ -210,7 +213,7 @@
         {% if stats.top_inactive_clients_breakdown %}
         <hr>
         <!-- Inactive Clients Row -->
-        <div class="row justify-content-center">
+        <div class="row justify-content-center print-avoid-break">
             <div class="col-md-8">
                 <h6 class="text-center text-secondary mb-3">Top 5 Inactive Clients (All Time GB)</h6>
                 <p class="text-center small text-muted">Clients with no backups in the last 7 days.</p>
@@ -246,7 +249,10 @@
 </div>
 
 
+
+
 <!-- Expiration Activity Section -->
+<div class="print-section">
 <h3 class="mt-4 mb-3 border-bottom pb-2">Expiration Activity</h3>
 
 <div class="card border-warning mb-4">
@@ -256,14 +262,14 @@
     <div class="card-body">
         <!-- Summary Row -->
         <div class="row align-items-center mb-4">
-            <div class="col-md-2 text-center border-end">
-                <h2 class="display-6 fw-bold mb-0">{{ "{:,}".format(stats.upcoming_expirations) }}</h2>
+            <div class="col-md-3 text-center border-end">
+                <h3 class="fw-bold mb-0">{{ "{:,}".format(stats.upcoming_expirations) }}</h3>
                 <small class="text-muted">Total Expiring</small>
             </div>
-            <div class="col-md-10">
+            <div class="col-md-9">
                  {% if stats.expiration_breakdown %}
                  <div class="table-responsive">
-                    <table class="table table-bordered text-center mb-0">
+                    <table class="table table-bordered table-sm text-center mb-0 small">
                         <thead class="table-light">
                             <tr>
                                 {% for key in stats.sorted_expiration_keys %}
@@ -305,21 +311,31 @@
          </div>
     </div>
 </div>
+</div>
 
 <!-- Inventory Summary Section -->
+<div class="print-section">
 {% if stats.inventory_summary %}
 <h3 class="mt-4 mb-3 border-bottom pb-2">Inventory Summary</h3>
 <div class="card border-info mb-4">
     <div class="card-header bg-info text-dark bg-opacity-10 border-info">
-        <h5 class="mb-0">Customer Breakdown</h5>
+        <h5 class="mb-0">
+            {% if 'Customer Report:' in title %}
+                Clients Breakdown
+            {% else %}
+                Customer Breakdown
+            {% endif %}
+        </h5>
     </div>
     <div class="card-body p-0">
          <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
             <table class="table table-striped table-hover mb-0">
                 <thead class="table-light text-secondary sticky-top" style="position: sticky; top: 0; z-index: 1;">
                     <tr>
-                        <th class="border-bottom-0">Customer</th>
+                        <th class="border-bottom-0" style="min-width: 300px;">{{ 'Client' if 'Customer Report:' in title else 'Customer' }}</th>
+                        {% if 'Customer Report:' not in title %}
                         <th class="text-end border-bottom-0">Client Count</th>
+                        {% endif %}
                         <th class="text-end border-bottom-0">Backups Count</th>
                         <th class="text-end border-bottom-0">Total Size (GB)</th>
                     </tr>
@@ -327,8 +343,10 @@
                 <tbody>
                     {% for row in stats.inventory_summary %}
                     <tr>
-                        <td>{{ row.extracted_customer }}</td>
+                        <td class="text-truncate" style="max-width: 300px;" title="{{ row.extracted_customer }}">{{ row.extracted_customer }}</td>
+                        {% if 'Customer Report:' not in title %}
                         <td class="text-end">{{ "{:,}".format(row.client_count) }}</td>
+                        {% endif %}
                         <td class="text-end">{{ "{:,}".format(row.backup_count) }}</td>
                         <td class="text-end">{{ "{:,.2f}".format(row.total_gb) }}</td>
                     </tr>
@@ -339,6 +357,8 @@
     </div>
 </div>
 {% endif %}
+</div>
+
 
 <div class="alert alert-light border">
     <small class="text-muted">Statistics based on report date: <strong>{{ stats.simulated_date }}</strong></small>

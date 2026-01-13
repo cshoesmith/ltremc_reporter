@@ -164,6 +164,14 @@
                 flex: 0 0 auto !important;
                 width: 50% !important;
             }
+            .col-md-3 {
+                flex: 0 0 auto !important;
+                width: 25% !important;
+            }
+            .col-md-9 {
+                flex: 0 0 auto !important;
+                width: 75% !important;
+            }
             .col-md-2 {
                 flex: 0 0 auto !important;
                 width: 16.666667% !important;
@@ -195,6 +203,27 @@
 
             /* --- Repeating Headers Logic --- */
             
+            h3, .card-header {
+                break-after: avoid;
+                page-break-after: avoid;
+            }
+            
+            tr {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .print-section {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                margin-bottom: 20px;
+            }
+
+            .print-avoid-break {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
             /* Add padding to body to prevent content from hiding behind fixed header */
             body { 
                 padding-top: 30px !important; 

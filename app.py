@@ -506,16 +506,37 @@ def get_dashboard_stats(df, full_df=None):
          
          if inv_byte_col:
              try:
-                 # Group
-                 aggs = {
-                     'backup_count': ('extracted_customer', 'count'),
-                     'total_bytes': (inv_byte_col, lambda x: pd.to_numeric(x, errors='coerce').sum())
-                 }
-                 if inv_client_col:
-                     aggs['client_count'] = (inv_client_col, 'nunique')
-
-                 summary_df = df.groupby('extracted_customer').agg(**aggs).reset_index()
+                 inv_mode = 'customer' # Default to grouping by customer
+                 unique_customers = df['extracted_customer'].nunique()
                  
+                 # Logic: If we are viewing a single customer, break down by CLIENT
+                 if unique_customers == 1 and inv_client_col:
+                     inv_mode = 'client'
+                 
+                 if inv_mode == 'client':
+                     # Group by CLIENT
+                     aggs = {
+                         'backup_count': ('extracted_customer', 'count'),
+                         'total_bytes': (inv_byte_col, lambda x: pd.to_numeric(x, errors='coerce').sum())
+                     }
+                     summary_df = df.groupby(inv_client_col).agg(**aggs).reset_index()
+                     
+                     # Rename client col to 'extracted_customer' for template compatibility
+                     summary_df.rename(columns={inv_client_col: 'extracted_customer'}, inplace=True)
+                     summary_df['client_count'] = 1 # 1 Client per row
+                     
+                 else:
+                     # Group by CUSTOMER
+                     aggs = {
+                         'backup_count': ('extracted_customer', 'count'),
+                         'total_bytes': (inv_byte_col, lambda x: pd.to_numeric(x, errors='coerce').sum())
+                     }
+                     if inv_client_col:
+                         aggs['client_count'] = (inv_client_col, 'nunique')
+
+                     summary_df = df.groupby('extracted_customer').agg(**aggs).reset_index()
+                 
+                 # Common Post-Processing
                  # Convert to GB and round
                  summary_df['total_gb'] = (summary_df['total_bytes'] / (1024**3)).round(2)
                  
