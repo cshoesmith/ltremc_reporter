@@ -218,7 +218,7 @@
                     <canvas id="topInactiveClientsChart"></canvas>
                 </div>
 
-                <div class="table-responsive" style="width: 80%; margin: 0 auto;">
+                <div class="table-responsive" style="width: 100%;">
                     <table class="table table-sm table-striped small">
                         <thead class="table-light">
                             <tr>
@@ -598,10 +598,10 @@
         const element = document.querySelector('.report-container'); 
         
         const opt = {
-            margin:       [5, 5, 5, 5], 
+            margin:       [2, 2, 2, 2], // Reduced to 2mm to prevent clipping
             filename:     filename,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { 
+            html2canvas:  {  
                 scale: 2, 
                 useCORS: true, 
                 logging: false,

@@ -233,7 +233,7 @@
 
         /* Report Container - Constrains layout to Print-like width always */
         .report-container {
-            max-width: 210mm; /* A4 width */
+            max-width: 204mm; /* Slightly less than 210mm to fit within margins */
             margin: 0 auto;
             background: white;
             padding: 0 5px; /* Minimal padding to maximize table width */
@@ -270,6 +270,12 @@
         body.pdf-export-mode .table-responsive {
             overflow: visible !important;
             display: block !important;
+            max-height: none !important; /* Allow efficient full expansion (no scrolling) */
+        }
+
+        /* Disable sticky headers in PDF as they can act weirdly */
+        body.pdf-export-mode .sticky-top {
+            position: static !important;
         }
     </style>
     {% block head %}{% endblock %}
@@ -285,18 +291,19 @@
     {% if request.endpoint != 'index' %}
     <nav class="navbar navbar-expand-lg navbar-dark mb-4 py-3 d-print-none">
         <div class="container-fluid">
-            <a class="navbar-brand d-flex flex-column py-0" href="/">
-                <span style="line-height: 1.2; font-size: 1.4rem">LTREMC Backup Reporter</span>
-                <span style="font-size: 0.85rem; opacity: 0.9; font-weight: 400;">Author: Chris Shoesmith (chris.shoesmith@dell.com)</span>
+            <a class="navbar-brand d-flex align-items-center py-0" href="/">
+                <span style="font-size: 1.8rem; font-weight: 500;">LTREMC Backup Reporter</span>
             </a>
              <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarCollapse">
                 <ul class="navbar-nav me-auto mb-2 mb-md-0">
+                    {% if request.endpoint != 'processing' %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
                     </li>
+                    {% endif %}
                     
                     {% if menu_customers %}
                     <li class="nav-item dropdown">
@@ -328,9 +335,18 @@
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav ms-auto">
-                     <li class="nav-item">
-                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#logModal" onclick="loadLog()">View Log</a>
+                    {% if request.endpoint != 'processing' %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownAbout" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            About
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownAbout">
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#logModal" onclick="loadLog()">System Logs</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#aboutModal">About LTREMC Reporter</a></li>
+                        </ul>
                     </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -393,6 +409,42 @@
                 });
         }
     </script>
+    
+    <!-- About Modal -->
+    <div class="modal fade" id="aboutModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-center">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-0 pb-4">
+                    <img src="{{ url_for('static', filename='img/logo-no-background.png') }}" alt="Logo" class="mb-3" style="height: 80px;">
+                    <h4 class="mb-1">LTREMC Backup Reporter</h4>
+                    <p class="text-muted small mb-3">Version {{ app_version }}</p>
+                    
+                    <div class="mb-4">
+                        <h6 class="text-uppercase text-muted small fw-bold mb-2">Developed By</h6>
+                        <div>Chris Shoesmith</div>
+                        <div class="text-muted small">chris.shoesmith@dell.com</div>
+                    </div>
+
+                    <div class="mb-4 text-start bg-light p-3 rounded small">
+                        <h6 class="text-uppercase text-muted small fw-bold mb-2">Technology Stack</h6>
+                        <ul class="mb-0 ps-3">
+                            <li><strong>Backend:</strong> Python, Flask, Jinja2, Pandas</li>
+                            <li><strong>Frontend:</strong> Bootstrap 5, Chart.js</li>
+                            <li><strong>Export:</strong> html2pdf.js, html2canvas, jsPDF</li>
+                        </ul>
+                    </div>
+
+                    <div class="small text-muted border-top pt-3">
+                        <p class="mb-1">Licensed under the <strong>MIT License</strong>.</p>
+                        <a href="https://opensource.org/licenses/MIT" target="_blank" class="text-decoration-none">View License Agreement</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     {% block scripts %}{% endblock %}
 </body>
