@@ -531,9 +531,17 @@ def get_dashboard_stats(df, full_df=None):
                  print(f"Error creating inventory summary: {e}")
 
     # General Stats
-    # Sort activity_breakdown keys to ensure proper order in stats object (optional since template sorts)
-    sorted_activity_keys = sorted(activity_breakdown.keys(), key=lambda k: activity_breakdown[k], reverse=True)
-    sorted_expiration_keys = sorted(expiration_breakdown.keys(), key=lambda k: expiration_breakdown[k], reverse=True)
+    # Define desired sort order for buckets
+    desired_order = ['7 days', '30 days', '90 days', '1 year', '7 years']
+    
+    def sort_buckets(keys):
+        # Map known keys to index, unknown keys get 999
+        order_map = {k: i for i, k in enumerate(desired_order)}
+        return sorted(keys, key=lambda k: order_map.get(k, 999))
+
+    # Sort activity_breakdown keys
+    sorted_activity_keys = sort_buckets(activity_breakdown.keys())
+    sorted_expiration_keys = sort_buckets(expiration_breakdown.keys())
 
     stats = {
         'total_records': len(df),

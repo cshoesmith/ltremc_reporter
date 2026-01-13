@@ -1,14 +1,37 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="mb-0">{{ title if title else 'LTREMC Avamar Dashboard' }}</h1>
-
-    {% if stats.is_override %}
-    <div class="text-end lh-sm">
-        <div class="text-muted small">Report Date: <strong>{{ stats.simulated_date }}</strong></div>
-    </div>
+{% set filename_suffix = 'Global' %}
+{% if title %}
+    {% if 'Avamar Grid: ' in title %}
+        {% set filename_suffix = title.replace('Avamar Grid: ', '') %}
+    {% elif 'Customer Report: ' in title %}
+        {% set filename_suffix = title.replace('Customer Report: ', '') %}
     {% endif %}
+{% endif %}
+{% set print_filename = 'LTREMC_' ~ stats.simulated_date ~ '_' ~ filename_suffix ~ '.pdf' %}
+
+<div class="d-flex justify-content-between align-items-end mb-4 print-hero-header">
+    <div class="d-flex align-items-center">
+        <img src="{{ url_for('static', filename='img/logo-no-background.png') }}" alt="Logo" style="height: 60px; width: auto;" class="me-3">
+        <h1 class="mb-0" style="line-height: 1.1;">{{ title if title else 'LTREMC Avamar Dashboard' }}</h1>
+    </div>
+
+    <div class="text-end d-flex flex-column align-items-end">
+        <div class="mb-2 d-print-none" data-html2canvas-ignore="true">
+            <button onclick="printReport('{{ print_filename }}')" class="btn btn-outline-secondary btn-sm me-1" title="Print">
+                <i class="bi bi-printer-fill"></i>
+            </button>
+            <button onclick="exportPDF('{{ print_filename }}')" class="btn btn-outline-danger btn-sm" title="Export to PDF">
+                <i class="bi bi-file-earmark-pdf-fill"></i>
+            </button>
+        </div>
+        {% if stats.is_override %}
+        <div class="text-muted small">Report Date: <strong>{{ stats.simulated_date }}</strong></div>
+        {% else %}
+        <div class="text-muted small">Report Date: <strong>{{ stats.simulated_date }}</strong></div>
+        {% endif %}
+    </div>
 </div>
 
 {% if dropped_files %}
@@ -113,7 +136,7 @@
             <div class="col-md-10">
                  {% if stats.activity_breakdown %}
                  <div class="table-responsive">
-                    <table class="table table-bordered text-center mb-0">
+                    <table class="table table-bordered text-center mb-0 small" style="font-size: 0.75rem;">
                         <thead class="table-light">
                             <tr>
                                 <th class="small text-start">Metric</th>
@@ -552,4 +575,63 @@
 {{ list_modal('modalTotalClients', 'All Clients', stats.all_clients_list) }}
 {{ list_modal('modalActiveClients', 'Active Clients (Last 7 Days)', stats.active_clients_list) }}
 
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+    function printReport(filename) {
+        const originalTitle = document.title;
+        document.title = filename;
+        window.print();
+        setTimeout(() => {
+            document.title = originalTitle;
+        }, 1000);
+    }
+
+    function exportPDF(filename) {
+        document.body.classList.add('pdf-export-mode');
+        // Scroll to top to ensure capture starts from top
+        window.scrollTo(0,0);
+        
+        // Target the report container specifically
+        const element = document.querySelector('.report-container'); 
+        
+        const opt = {
+            margin:       [5, 5, 5, 5], 
+            filename:     filename,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true, 
+                logging: false,
+                scrollY: 0
+                // Removed windowWidth to let it detect natural size
+            },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+
+        // UI Feedback
+        const btn = event.currentTarget;
+        const orgHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        document.body.style.cursor = 'wait';
+        
+        // Wait a tick for CSS reflow
+        setTimeout(() => {
+            html2pdf().set(opt).from(element).save().then(() => {
+                document.body.classList.remove('pdf-export-mode');
+                document.body.style.cursor = 'default';
+                btn.innerHTML = orgHtml;
+            }).catch(err => {
+                console.error('PDF Export Error:', err);
+                alert('Error generating PDF.');
+                document.body.classList.remove('pdf-export-mode');
+                document.body.style.cursor = 'default';
+                btn.innerHTML = orgHtml;
+            });
+        }, 100);
+    }
+</script>
 {% endblock %}
