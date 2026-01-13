@@ -668,6 +668,10 @@ def load_local():
     elif filename:
         # Filename provided (from Storage list)
         input_dir = config.get('input_directory')
+        if not input_dir:
+             # Default to UPLOAD_FOLDER if no input directory configured
+             input_dir = app.config['UPLOAD_FOLDER']
+             
         if input_dir:
             target_path = os.path.join(input_dir, filename)
             
