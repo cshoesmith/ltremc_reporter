@@ -74,7 +74,7 @@ WorkingDirectory=$INSTALL_DIR
 Environment="PATH=$INSTALL_DIR/venv/bin"
 # Using 1 worker with threads to ensure the in-memory TASKS dict is shared. 
 # Increasing workers would require an external store like Redis.
-ExecStart=$INSTALL_DIR/venv/bin/gunicorn --workers 1 --threads 8 --timeout 0 --bind 0.0.0.0:8000 app:app
+ExecStart=$INSTALL_DIR/venv/bin/gunicorn --workers 1 --threads 8 --timeout 0 --bind 0.0.0.0:9002 app:app
 Restart=always
 
 [Install]
@@ -89,5 +89,22 @@ systemctl enable ${SERVICE_NAME}
 echo "[-] Starting service..."
 systemctl restart ${SERVICE_NAME}
 
+# 7. Firewall Check
+echo "[-] Checking Firewall Status for Port 9002..."
+if command -v firewall-cmd &> /dev/null; then
+    if systemctl is-active --quiet firewalld; then
+        if firewall-cmd --list-ports | grep -q "9002/tcp"; then
+             echo "    [OK] Port 9002 is already open in firewalld."
+        else
+             echo "    [WARNING] Port 9002 does NOT appear to be open in the current zone."
+             echo "              To open it, run: firewall-cmd --add-port=9002/tcp --permanent && firewall-cmd --reload"
+        fi
+    else
+        echo "    [INFO] firewalld is installed but not active. Skipping check."
+    fi
+else
+    echo "    [INFO] firewall-cmd not found. Skipping firewalld check."
+fi
+
 echo "=== Installation Complete ==="
-echo "App should be running at http://$(hostname -I | awk '{print $1}'):8000"
+echo "App should be running at http://$(hostname -I | awk '{print $1}'):9002"
