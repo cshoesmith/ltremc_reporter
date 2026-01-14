@@ -1,0 +1,46 @@
+# LTREMC Reporter - RHEL8 Installation Instructions (Python 3.6 Legacy)
+
+## Prerequisites
+- **OS**: Red Hat Enterprise Linux 8 (x86_64)
+- **Python**: Python 3.6 (Standard System Python)
+  ```bash
+  sudo dnf install python36
+  ```
+
+## Installation Steps
+
+1. **Transfer the Bundle**
+   Copy the `.tar.gz` bundle file to the target server (e.g., using `scp` or `sftp`).
+
+2. **Extract the Bundle**
+   ```bash
+   tar -xvf ltremc_reporter_rhel8_v*.tar.gz
+   ```
+
+3. **Run the Installer**
+   Navigate into the extracted directory and run the install script.
+   *Note: Sudo/Root privileges are required to configure the systemd service.*
+
+   ```bash
+   cd ltremc_reporter_rhel8_bundle
+   chmod +x install.sh
+   sudo ./install.sh
+   ```
+
+4. **Verify Installation**
+   The installer will enable and start the `ltremc-reporter` service automatically.
+   
+   To check the status:
+   ```bash
+   systemctl status ltremc-reporter
+   ```
+
+   The application runs on port **9002** by default.
+   Access it via: `http://<server-ip>:9002`
+
+## Troubleshooting
+- If `python3.9` is missing, the installer will exit with an error.
+- Logs can be viewed via systemd:
+  ```bash
+  journalctl -u ltremc-reporter -f
+  ```
