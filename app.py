@@ -734,7 +734,9 @@ def upload_file():
 @app.route('/processing/<task_id>')
 def processing(task_id):
     if task_id not in TASKS:
-        flash("Invalid processing task.")
+        # Debugging for multi-process environments
+        print(f"DEBUG: Task {task_id} not found in TASKS. Current keys: {list(TASKS.keys())}")
+        flash(f"Invalid processing task: {task_id}. Please try again.")
         return redirect(url_for('index'))
     return render_template('processing.html', task_id=task_id)
 

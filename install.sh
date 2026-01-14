@@ -72,7 +72,9 @@ User=root
 Group=root
 WorkingDirectory=$INSTALL_DIR
 Environment="PATH=$INSTALL_DIR/venv/bin"
-ExecStart=$INSTALL_DIR/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 app:app
+# Using 1 worker with threads to ensure the in-memory TASKS dict is shared. 
+# Increasing workers would require an external store like Redis.
+ExecStart=$INSTALL_DIR/venv/bin/gunicorn --workers 1 --threads 8 --timeout 0 --bind 0.0.0.0:8000 app:app
 Restart=always
 
 [Install]
